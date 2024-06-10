@@ -1,0 +1,5 @@
+*.lock
+exemple.env
+pyproject.toml
+.gitignore
+.dockerignore
