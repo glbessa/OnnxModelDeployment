@@ -1,16 +1,18 @@
 [tool.poetry]
-name = "modeldeployment"
+name = "onnxmodeldeployment"
 version = "0.1.0"
 description = ""
 authors = ["Gabriel Leite Bessa <gabrielleitebessa@gmail.com>"]
-license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-fastapi = "^0.111.0"
 onnxruntime = "^1.18.0"
-dotenv-python = "^0.0.1"
+uvicorn = "^0.30.1"
+fastapi = "^0.111.0"
+python-dotenv = "^1.0.1"
+opencv-python = "^4.10.0.84"
+numpy = "^2.0.0"
 
 
 [build-system]
