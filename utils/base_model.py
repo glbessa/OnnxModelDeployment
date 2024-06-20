@@ -1,13 +1,12 @@
 import onnxruntime
 from abc import abstractmethod, ABCMeta
 
-class BaseModel(ABCMeta):
+from utils import load_model
+
+class BaseModel(metaclass=ABCMeta):
     def __init__(self, onnx_path):
         self.onnx_path = onnx_path
-        self.model = onnxruntime.InferenceSession(
-            onnx_path,
-            providers=["CUDAExecutionProvider", "CPUExecutionProvider"] if onnxruntime.get_device() == 'GPU' else ["CPUExecutionProvider"]
-        )
+        self.model = load_model(onnx_path)
 
     @abstractmethod
     def __call__(self, inputs):

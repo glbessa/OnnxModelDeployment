@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from base_model import BaseModel
+from utils import load_model
+from utils.base_model import BaseModel
 
 class YOLOv8Seg(BaseModel):
     """YOLOv8 segmentation model."""
@@ -16,12 +17,7 @@ class YOLOv8Seg(BaseModel):
         """
 
         # Build Ort session
-        self.session = ort.InferenceSession(
-            onnx_model,
-            providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
-            if ort.get_device() == "GPU"
-            else ["CPUExecutionProvider"],
-        )
+        self.session = load_model(onnx_model)
 
         # Numpy dtype: support both FP32 and FP16 onnx model
         self.ndtype = np.half if self.session.get_inputs()[0].type == "tensor(float16)" else np.single
@@ -63,6 +59,23 @@ class YOLOv8Seg(BaseModel):
             nm=nm,
         )
         return boxes, segments, masks
+    
+    def infer(self, im, conf_threshold=0.4, iou_threshold=0.45, nm=32):
+        """
+        Inference only.
+
+        Args:
+            im0 (Numpy.ndarray): original input image.
+            conf_threshold (float): confidence threshold for filtering predictions.
+            iou_threshold (float): iou threshold for NMS.
+            nm (int): the number of masks.
+
+        Returns:
+            preds (List): list of predictions.
+        """
+
+        # Ort inference
+        return self.session.run(None, {self.session.get_inputs()[0].name: im})
 
     def preprocess(self, img):
         """
@@ -80,7 +93,10 @@ class YOLOv8Seg(BaseModel):
 
         # Resize and pad input image using letterbox() (Borrowed from Ultralytics)
         shape = img.shape[:2]  # original image shape
+        print(img.shape)
         new_shape = (self.model_height, self.model_width)
+        print(new_shape)
+        print(shape)
         r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
         ratio = r, r
         new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))

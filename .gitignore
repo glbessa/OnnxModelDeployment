@@ -1,3 +1,11 @@
 .env
 *.lock
 __pycache__
+
+# Ignore private folder
+private
+
+# Ignore image files
+*.jpg
+*.jpeg
+*.pne

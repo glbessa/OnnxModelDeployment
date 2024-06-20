@@ -5,7 +5,7 @@ load_dotenv(find_dotenv())
 
 # Server configs
 HOST = os.getenv('HOST', '127.0.0.1')
-PORT = os.getenv('PORT', 8000)
+PORT = int(os.getenv('PORT', 8000))
 ALLOWED_MIME_TYPES = set(os.getenv('ALLOWED_MIME_TYPES', 'image/jpeg,image/png').split(','))
 
 # Input parameters
