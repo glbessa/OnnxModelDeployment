@@ -7,6 +7,8 @@ load_dotenv(find_dotenv())
 HOST = os.getenv('HOST', '127.0.0.1')
 PORT = int(os.getenv('PORT', 8000))
 ALLOWED_MIME_TYPES = set(os.getenv('ALLOWED_MIME_TYPES', 'image/jpeg,image/png').split(','))
+UPLOADS_PATH = os.getenv('UPLOAD_FOLDER', './media/uploads')
+RESULTS_PATH = os.getenv('RESULT_FOLDER', './media/results')
 
 # Input parameters
 INPUT_WIDTH = os.getenv('INPUT_WIDTH', 224)

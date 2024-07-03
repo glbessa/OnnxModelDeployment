@@ -4,6 +4,7 @@ __pycache__
 
 # Ignore private folder
 private
+media
 
 # Ignore image files
 *.jpg

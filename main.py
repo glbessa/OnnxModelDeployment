@@ -1,24 +1,22 @@
-import uvicorn
+import uvicorn, os, io, time, mimetypes, logging, base64
 from fastapi import FastAPI, UploadFile, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
 import numpy as np
-import os
-import io
-import time
-import mimetypes
-import logging
-import base64
+import matplotlib.pyplot as plt
 from PIL import Image
-
-from utils.yolov8_seg import YOLOv8Seg
-
-from settings import HOST, PORT, ALLOWED_MIME_TYPES, MODEL_PATH
+from uuid import uuid4
+from ultralytics import YOLO
+from ultralytics.utils.plotting import Annotator
+from settings import HOST, PORT, UPLOADS_PATH, RESULTS_PATH, ALLOWED_MIME_TYPES, MODEL_PATH
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI()
-model = YOLOv8Seg(MODEL_PATH)
+model = YOLO(MODEL_PATH)
+
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 # Enable CORS
 app.add_middleware(
@@ -29,8 +27,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define the response model
-
 class InstanceSegmentationResponse(BaseModel):
     segments: list[list[tuple[int, int]]]
 
@@ -38,9 +34,9 @@ class InstanceSegmentationResponse(BaseModel):
 @app.get("/health")
 async def get_health():
     if model is None:
-        return Response(status_code=500, content="Model not loaded")
+        return JSONResponse(status_code=500, content="Model not loaded")
 
-    return Response(status_code=200, content="Model loaded successfully")
+    return JSONResponse(status_code=200, content="Model loaded successfully")
 
 @app.post('/predict')
 async def post_predict(images: list[UploadFile]):
@@ -52,58 +48,25 @@ async def post_predict(images: list[UploadFile]):
 
     contents = [await image.read() for image in images]
     images = np.stack([np.array(Image.open(io.BytesIO(content))) for content in contents])
-    print(images.shape)
 
     # Convert the image to numpy array
     start_time = time.time()
     prediction = model(images[0])
     end_time = time.time()
 
-    print(prediction)
-
     # Calculate inference time
     inference_time = end_time - start_time
+    prediction_filename = f"{uuid4()}.png"
+
+    for pred in prediction:
+        im = pred.plot()
+        plt.axis('off')
+        plt.imshow(im)
+        plt.savefig(os.path.join(RESULTS_PATH, prediction_filename), bbox_inches='tight', pad_inches=0)
 
     # Return the prediction result and inference time
     return {
-        "predictions": prediction,
-        "inference_time": inference_time
-    }
-
-@app.post("/predict")
-async def post_predict(images: list[UploadFile]):
-    # Read the image file
-    for image in images:
-        if image.content_type not in ALLOWED_MIME_TYPES:
-            return Response(status_code=415, content="Unsupported Media Type")
-    
-    contents = [await image.read() for image in images]
-
-    # Convert the image to numpy array
-    image_array = np.frombuffer(contents, dtype=np.uint8)
-
-    # Perform prediction using the onnxruntime model
-    input_name = model.get_inputs()[0].name
-    output_name = model.get_outputs()[0].name
-
-    start_time = time.time()
-    prediction = model.run([output_name], {input_name: image_array})
-    end_time = time.time()
-
-    print(prediction[2].shape)
-
-    # save masks to disk
-    for i, mask in enumerate(prediction[2]):
-        mask = mask.squeeze()
-        mask = Image.fromarray(mask)
-        mask.save(f"mask_{i}.png")
-
-    # Calculate inference time
-    inference_time = end_time - start_time
-
-    # Return the prediction result and inference time
-    return {
-        "prediction": prediction,
+        "prediction_path": f"results/{prediction_filename}",
         "inference_time": inference_time
     }
 
