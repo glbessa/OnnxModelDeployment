@@ -1,7 +1,7 @@
 import uvicorn, os, io, time, mimetypes, logging, base64
 from fastapi import FastAPI, UploadFile, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import numpy as np
@@ -15,8 +15,6 @@ from settings import HOST, PORT, UPLOADS_PATH, RESULTS_PATH, ALLOWED_MIME_TYPES,
 logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 model = YOLO(MODEL_PATH)
-
-app.mount("/media", StaticFiles(directory="media"), name="media")
 
 # Enable CORS
 app.add_middleware(
@@ -39,36 +37,34 @@ async def get_health():
     return JSONResponse(status_code=200, content="Model loaded successfully")
 
 @app.post('/predict')
-async def post_predict(images: list[UploadFile]):
+async def post_predict(image: UploadFile):
     # Read the image file
-    for image in images:
-        guessed_type, _ = mimetypes.guess_type(image.filename)
-        if image.content_type not in ALLOWED_MIME_TYPES or guessed_type not in ALLOWED_MIME_TYPES:
-            return Response(status_code=415, content="Unsupported Media Type")
+    guessed_type, _ = mimetypes.guess_type(image.filename)
+    if image.content_type not in ALLOWED_MIME_TYPES or guessed_type not in ALLOWED_MIME_TYPES:
+        return Response(status_code=415, content="Unsupported Media Type")
 
-    contents = [await image.read() for image in images]
-    images = np.stack([np.array(Image.open(io.BytesIO(content))) for content in contents])
+    content = await image.read()
+    image = np.array(Image.open(io.BytesIO(content)))
 
     # Convert the image to numpy array
     start_time = time.time()
-    prediction = model(images[0])
+    prediction = model(image)
     end_time = time.time()
 
     # Calculate inference time
     inference_time = end_time - start_time
-    prediction_filename = f"{uuid4()}.png"
 
-    for pred in prediction:
-        im = pred.plot()
-        plt.axis('off')
-        plt.imshow(im)
-        plt.savefig(os.path.join(RESULTS_PATH, prediction_filename), bbox_inches='tight', pad_inches=0)
+    pred = prediction[0]
+    im = pred.plot()
+    plt.axis('off')
+    plt.imshow(im)
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+    buf.seek(0)
 
-    # Return the prediction result and inference time
-    return {
-        "prediction_path": f"results/{prediction_filename}",
-        "inference_time": inference_time
-    }
+    # Return the prediction image
+    #return Response(content=base64.encodebytes(im.tobytes()), media_type='image/png')
+    return StreamingResponse(buf, media_type='image/png')
 
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT)
