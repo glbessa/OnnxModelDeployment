@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - ${SERVER_PORT}:80
+    restart: unless-stopped
   api:
     build: 
       context: .
@@ -13,4 +14,7 @@ services:
     environment:
       - HOST=${HOST}
       - PORT=${PORT}
+    depends_on:
+      - reverse-proxy
+    restart: unless-stopped
   
