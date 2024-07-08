@@ -1,11 +1,16 @@
 version: '3.8'
 services:
+  reverse-proxy:
+    build: 
+      context: reverse_proxy
+      dockerfile: Dockerfile
+    ports:
+      - ${SERVER_PORT}:80
   api:
     build: 
       context: .
       dockerfile: Dockerfile
-    ports:
-      - 8000:8000
     environment:
       - HOST=${HOST}
       - PORT=${PORT}
+  
